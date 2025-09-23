@@ -1,0 +1,11 @@
+{
+  "title": "LangChain: Standardized LLM Development",
+  "summary": "LangChain offers standardized components for building LLM applications, including prompts, chains, and memory. This approach enables faster development and easy model swapping.",
+  "keywords": [
+    "LangChain",
+    "LLMs",
+    "prompts",
+    "chains",
+    "memory"
+  ]
+}

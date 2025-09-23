@@ -3,9 +3,12 @@ import os
 from pathlib import Path
 
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
-from langchain_community.llms import Ollama
+try:
+    from langchain_ollama import OllamaLLM as Ollama
+except Exception:  # fallback if langchain-ollama not installed
+    from langchain_community.llms import Ollama  # type: ignore
 
 
 class SummarySchema(BaseModel):
@@ -34,10 +37,11 @@ def build_prompt(parser: JsonOutputParser) -> ChatPromptTemplate:
         },
     ]
 
+    # Avoid curly-brace collisions by passing pre-rendered JSON in a single variable
     example_prompt = ChatPromptTemplate.from_messages(
         [
             ("human", "Text: {input}"),
-            ("ai", json.dumps({"title": "{title}", "summary": "{summary}", "keywords": ["{k1}", "{k2}"]})),
+            ("ai", "{example_json}"),
         ]
     )
 
@@ -46,18 +50,17 @@ def build_prompt(parser: JsonOutputParser) -> ChatPromptTemplate:
         examples=[
             {
                 "input": e["input"],
-                "title": e["output"]["title"],
-                "summary": e["output"]["summary"],
-                "k1": e["output"]["keywords"][0],
-                "k2": e["output"]["keywords"][1],
+                "example_json": json.dumps(e["output"], ensure_ascii=False),
             }
             for e in examples
         ],
     )
 
+    # IMPORTANT: Don't inline the JSON schema here, or `{}` inside it
+    # will be mistaken for template variables. Inject via a single variable.
     system = (
-        "You are a concise summarizer. Produce valid JSON only with keys: title, summary, keywords. "
-        f"Follow this JSON schema: {parser.get_format_instructions()}"
+        "You are a concise summarizer. Produce valid JSON only with keys: title, summary, keywords.\n"
+        "Follow this JSON schema:\n{format_instructions}"
     )
 
     prompt = ChatPromptTemplate.from_messages(
@@ -67,7 +70,8 @@ def build_prompt(parser: JsonOutputParser) -> ChatPromptTemplate:
             ("human", "Summarize this text:\n{input_text}"),
         ]
     )
-    return prompt
+    # Inject the format instructions as a single variable to avoid brace-collisions
+    return prompt.partial(format_instructions=parser.get_format_instructions())
 
 
 def main() -> None:
