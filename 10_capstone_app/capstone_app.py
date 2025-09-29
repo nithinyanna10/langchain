@@ -146,7 +146,9 @@ Be thorough and accurate in your analysis."""),
             ("human", "Analyze this text: {text}")
         ])
         
-        chain = prompt | self.llm | parser
+        # Add format instructions to the prompt
+        prompt_with_instructions = prompt.partial(format_instructions=parser.get_format_instructions())
+        chain = prompt_with_instructions | self.llm | parser
         return chain.invoke({"text": text})
     
     def process_user_query(self, query: str) -> Dict[str, Any]:
