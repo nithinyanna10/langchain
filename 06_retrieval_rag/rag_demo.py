@@ -9,7 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.vectorstores import VectorStore
 from langchain_core.retrievers import BaseRetriever
 from langchain_community.vectorstores import FAISS
-from langchain_community.retrievers import VectorStoreRetriever
+from langchain_core.retrievers import BaseRetriever
 try:
     from langchain_ollama import OllamaLLM as Ollama
 except Exception:
@@ -49,6 +49,8 @@ class SimpleEmbeddings(Embeddings):
     
     def embed_query(self, text: str) -> List[float]:
         """Generate embedding for a single query."""
+        if isinstance(text, dict):
+            text = text.get('question', str(text))
         return self.embed_documents([text])[0]
 
 
@@ -103,7 +105,7 @@ def build_rag_chain(model_name: str = "gemma3:12b-it-qat"):
     vectorstore = FAISS.from_documents(documents, embeddings)
     
     # Create retriever
-    retriever = VectorStoreRetriever(vectorstore=vectorstore, k=3)
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
     
     # Create LLM
     llm = Ollama(model=model_name)
